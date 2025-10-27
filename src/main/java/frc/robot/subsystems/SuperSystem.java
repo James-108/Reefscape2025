@@ -1,15 +1,15 @@
 package frc.robot.subsystems;
-
+/** Importing functions */
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
-
+/** Importing autos, signals, and CANdi */
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.CANdi;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.S1StateValue;
 import com.ctre.phoenix6.signals.S2StateValue;
 import com.pathplanner.lib.auto.NamedCommands;
-
+/** Importing Driver Station, Timer, Shuffleboard, Smart dashboard, Commands, Constants, and Positions */
 import edu.wpi.first.hal.CANData;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
@@ -26,28 +26,45 @@ import frc.robot.Constants.PivotConstants;
 import frc.robot.Constants.WristConstants;
 import frc.robot.Constants.SuperSystemConstants.AlgaePositions;
 import frc.robot.Constants.SuperSystemConstants.CoralPositions;
-
+/** Importing positions, Log level, Swerve */
 import frc.robot.Constants.SuperSystemConstants.Position;
 import frc.robot.Constants.SuperSystemConstants.PositionEquivalents;
 import frc.robot.subsystems.Reportable.LOG_LEVEL;
 import frc.robot.subsystems.swerve.SwerveDrivetrain;
+
+/**
+ * Coordinates all major subsystems: elevator, pivot, wrist, intake, climb, and drivetrain.
+ */
 public class SuperSystem {
+    /** Elevator subsystem */
     public Elevator elevator;
+    /** Pivot arm subsystem */
     public Pivot pivot;
+    /** Wrist mechanism */
     public Wrist wrist;
+    /** Intake roller mechanism */
     public IntakeRoller intakeRoller;
+    /** Climber mechanism */
     public ClimbV2 climbMotor;
+    /** Drivetrain system */
     public SwerveDrivetrain swerveDrivetrain;
 
+    /** Intake sensor signal */
     public StatusSignal<S1StateValue> intakeSensor;
     
+    /** Current superstructure position */
     private PositionEquivalents currentPosition = PositionEquivalents.Stow;
+    /** Last known superstructure position */
     private PositionEquivalents lastPosition = PositionEquivalents.Stow;
     
     boolean elevatorWithinRange, pivotWithinRange;
 
+    /** Position suppliers */
     private BooleanSupplier pivotAtPosition, elevatorAtPosition, wristAtPosition, pivotAtPositionWide, elevatorAtPositionWide, wristAtPositionWide, intakeDetected;
 
+    /**
+     * Defines the order in which mechanisms execute motion
+     */
     public enum ExecutionOrder {
         ALL_TOGETHER,
         ELV_PVT_WRT,
@@ -60,7 +77,10 @@ public class SuperSystem {
         WRTPVT_ELV,
         PVT_WRTELV
     }
-    
+
+    /**
+     * Enum for current mode of play (Algae or Coral)
+     */
     public enum PositionMode {
         Coral,
         Algae,
@@ -72,6 +92,9 @@ public class SuperSystem {
     private boolean wristSet = false, elevatorSet = false, pivotSet = false;
     private double startTime = 0;
 
+    /**
+     * Constructs the SuperSystem with all major subsystems
+     */
     public SuperSystem(SwerveDrivetrain swerveDrivetrain, Elevator elevator, Pivot pivot, Wrist wrist, IntakeRoller intakeRoller, CANdi candi, ClimbV2 climbMotor) {
         this.elevator = elevator;
         this.pivot = pivot;
@@ -96,6 +119,9 @@ public class SuperSystem {
     }
 
     // subsystems
+    /**
+     * Reconfigures motor settings for all subsystems
+     */
     public void reConfigureMotors() {
         pivot.configureMotorV1();
         elevator.setMotorConfigs();
@@ -103,6 +129,9 @@ public class SuperSystem {
         intakeRoller.configureMotor(intakeRoller.motorConfigs);
     }
 
+    /**
+     * Sets the neutral mode for subsystems
+     */
     public void setNeutralMode(NeutralModeValue neutralMode) {
         elevator.setNeutralMode(neutralMode);
         pivot.setNeutralMode(neutralMode);
@@ -110,6 +139,9 @@ public class SuperSystem {
         reConfigureMotors();
     }
 
+    /**
+     * Zeros all encoder positions for pivot, elevator, and wrist
+     */
     public Command zeroEncoders() {
         return Commands.runOnce(()-> {
             pivot.zeroEncoder();
@@ -118,6 +150,9 @@ public class SuperSystem {
         });
     }
 
+    /**
+     * Stops all moving mechanisms
+     */
     public Command stop() {
         return Commands.runOnce(() -> {
             pivot.stopCommand();
@@ -126,33 +161,55 @@ public class SuperSystem {
         });
     }
 
+    /**
+     * Stops the intake roller
+     */
     public Command stopRoller() {
         return intakeRoller.stopCommand();
     }
+
+    /**
+     * Drives toward coral and intakes until piece detected
+     */
     public Command driveToCoralWithIntake(){
         return Commands.race(
                 swerveDrivetrain.driveToCoralCommand("limelight-coral", 8),//change later
                 intakeUntilSensed()
         );
     }
+
+    /**
+     * Intakes based on active game mode
+     */
     public Command intake() {
         return Commands.either(
             intakeUntilSensed(), 
             intakeAlgae(), 
             () -> (positionMode == PositionMode.Coral)
-            );
+        );
     }
 
+    /**
+     * Intakes algae
+     */
     public Command intakeAlgae() {
         return intakeRoller.intakeAlgae();
     }
+
+    /**
+     * Intakes coral
+     */
     public Command intakeCoral() {
         return intakeRoller.intakeCoral();
     }
+
+    /**
+     * Intakes coral slowly
+     */
     public Command intakeCoralSlow() {
         return intakeRoller.intakeCoralSlow();
     }
-
+   
     // public Command repositionCoral() {
     //     return Commands.sequence(
     //         repositionCoralLeft(),
@@ -176,6 +233,9 @@ public class SuperSystem {
     //     );
     // }
 
+    /**
+     * Intakes until object is sensed or voltage changes
+     */
     public Command intakeUntilSensed() {
         return Commands.sequence(    
             intakeCoral(),
@@ -183,12 +243,14 @@ public class SuperSystem {
                 Commands.waitUntil(intakeDetected),
                 Commands.waitUntil(() -> intakeRoller.desiredVoltageCoral != RollerConstants.kCoralIntakePower)
             ),
-            // 
             Commands.waitSeconds(0.01),
             stopRoller()
-            );
+        );
     }
 
+    /**
+     * Intakes until sensed or timeout occurs
+     */
     public Command intakeUntilSensed(double timeout) {
         return Commands.race(
             intakeCoral().until(intakeDetected),
@@ -196,6 +258,9 @@ public class SuperSystem {
         );
     }
 
+    /**
+     * Stops the roller to hold a piece
+     */
     public Command holdPiece() {
         return Commands.runOnce(() ->
             stopRoller()
@@ -204,16 +269,27 @@ public class SuperSystem {
         );
     }
 
+    /**
+     * Outtakes based on game mode
+     */
     public Command outtake() {
         return Commands.either(
             outtakeCoral(), 
             outtakeAlgae(), 
-           () -> positionMode == PositionMode.Coral);
+            () -> positionMode == PositionMode.Coral
+        );
     }
+
+    /**
+     * Outtakes algae
+     */
     public Command outtakeAlgae(){
         return intakeRoller.outtakeAlgae();
     }
-    
+
+    /**
+     * Outtakes coral
+     */
     public Command outtakeCoral() {
         // if (currentPosition == PositionEquivalents.L1 && positionMode == PositionMode.Coral) {
         //     return intakeRoller.outtakeL1();   
@@ -221,22 +297,33 @@ public class SuperSystem {
         return intakeRoller.outtakeCoral();
     }
 
+    /**
+     * Shoots algae using the set voltage
+     */
     public Command shootAlgae() {
         return intakeRoller.setVoltageCommand(4.25);
     } 
-    
     // public Command climbPrep() {
     //     return climbMotor.setVoltageCommand(0.5);
     // }
 
+    /**
+     * Starts the climb motor
+     */
     public Command climbstart() {
         return climbMotor.startClimb();
     }
-    
+
+    /**
+     * Starts the climb motor in grip mode
+     */
     public Command climbgrip() {
         return climbMotor.startClimbGrip();
     }
 
+    /**
+     * Stops the climb motor
+     */
     public Command climbstop() {
         return climbMotor.stopClimb();
     }
@@ -264,6 +351,9 @@ public class SuperSystem {
     //     return climbMotor.setVoltageCommand(0.0);
     // }
 
+    /**
+     * Moves system into climb up position
+     */
     public Command climbCommandUp() {
         return Commands.sequence(
             // climbPrep(), 
@@ -271,6 +361,9 @@ public class SuperSystem {
         );
     }
 
+    /**
+     * Moves system into climb down position
+     */
     
     public Command climbCommandDown() {
         return Commands.sequence(

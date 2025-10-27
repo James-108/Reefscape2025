@@ -12,7 +12,7 @@ import com.ctre.phoenix.motorcontrol.LimitSwitchNormal;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANdi;
 import com.pathplanner.lib.auto.AutoBuilder;
-
+/** Importing DriverStation, PowerDistribution, Shuffleboard, Smart dashboard, commands, constants, autos, swerve, subsystems*/
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.PowerDistribution;
 import edu.wpi.first.wpilibj.PowerDistribution.ModuleType;
@@ -49,14 +49,14 @@ import frc.robot.subsystems.IntakeRoller;
 import frc.robot.subsystems.Wrist;
 import frc.robot.subsystems.Pivot;
 import frc.robot.util.Controller;
-
+/** Make a class called RobotContainer */
 public class RobotContainer {
   public PigeonV2 imu = new PigeonV2(1, ModuleConstants.kCANivoreName);
-
+/** Public class called SwerveDrivetrain and PowerDistribution */
   public SwerveDrivetrain swerveDrive;
   public PowerDistribution pdp = new PowerDistribution(0, ModuleType.kCTRE);
   
-
+/** public class intake roller, banner sensor, elevator, pivot, wrist, and supersystem */
   public IntakeRoller intakeRoller;
   public BannerSensor intakeSensor;
   public Elevator elevator;
@@ -68,11 +68,11 @@ public class RobotContainer {
   public ClimbV2 climbMotor;
   public CANdi candi;
   public PositionMode positionMode;
-
+/** private classes for controllers */
   private final Controller driverController = new Controller(ControllerConstants.kDriverControllerPort, false);
   private final Controller operatorController = new Controller(ControllerConstants.kOperatorControllerPort,false);
   private final Controller testController = new Controller(3);
-  
+  /** Public classes for autos */
   private SendableChooser<Command> autoChooser = new SendableChooser<Command>();
   // private Bottom2Piece bottom2Piece;
   public Generic2Piece bottom2Piece;
@@ -80,7 +80,7 @@ public class RobotContainer {
   public Generic4Piece bottom4Piece;
 
   static boolean isRedSide = false;
-  
+  /** */
   private SwerveJoystickCommand swerveJoystickCommand;
   
   private final LOG_LEVEL loggingLevel = LOG_LEVEL.MINIMAL;
@@ -103,7 +103,7 @@ public class RobotContainer {
     } catch (IllegalArgumentException e) {
       DriverStation.reportError("Illegal Swerve Drive Module Type", e.getStackTrace());
     }
-
+  /** Initialize commands, subsystems, and configure button bindings */
     if (USE_SUBSYSTEMS) {
       wrist = new Wrist();
       elevator = new Elevator();
@@ -130,7 +130,7 @@ public class RobotContainer {
     
     DriverStation.reportWarning("Initalization complete", false);
   }
-
+  /** Update alliance color */
   public static void refreshAlliance() {
     var alliance = DriverStation.getAlliance();
     if (alliance.isPresent())
@@ -187,7 +187,7 @@ public class RobotContainer {
 
       }
     );
-
+    /** Set the default command for the swerve drive to the swerve joystick command */
       swerveDrive.setDefaultCommand(swerveJoystickCommand);
       if (USE_SUBSYSTEMS) {
         double PIVOT_SPEED = 1;// Degrees per second
@@ -225,7 +225,7 @@ public class RobotContainer {
   public void initDefaultCommands_test() {
     initDefaultCommands_teleop();
   }
-
+/** Teleop button bindings configuration */
   public void configureBindings_teleop() {
     ///////////////////////
     // Driver bindings
@@ -251,7 +251,7 @@ public class RobotContainer {
       driverController.triggerLeft()
         .onTrue(superSystem.outtake())
         .onFalse(superSystem.stopRoller());
-
+      
       // Climb sequence
       driverController.buttonUp() // Prepare Position for Climb
         .onTrue(Commands.sequence(
@@ -349,7 +349,7 @@ public class RobotContainer {
     //   .onTrue(superSystem.moveTo(NamedPositions.Stow));
   }
 
-
+//* Controller bindings */
   public void configureBindings_test() {
     // CommandScheduler.getInstance().getDefaultButtonLoop().clear();
     // driverController.buttonDown()
@@ -400,7 +400,7 @@ public class RobotContainer {
     // operatorController.triggerRight()
     // .onTrue(superSystem.moveToSemiStow());
    }
-  
+  /** Autonomous choosers initialization */
   private void initAutoChoosers() {
 
     // try { // ide displayed error fix
@@ -440,7 +440,7 @@ public class RobotContainer {
 
     } catch (Exception e) { SmartDashboard.putBoolean("Auto Error", true); }
   }
-  
+  /** Shuffleboard initialization */
   public void initShuffleboard() {
     // imu.initShuffleboard(loggingLevel);
     swerveDrive.initShuffleboard(loggingLevel);
@@ -467,7 +467,7 @@ public class RobotContainer {
     swerveDrive.setDriveMode(DRIVE_MODE.FIELD_ORIENTED);
     return currentAuto;
   }
-
+/** Disable all motors for testing purposes only */
   public void DisableAllMotors_Test()
   {
     elevator.stopMotion();
